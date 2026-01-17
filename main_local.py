@@ -46,8 +46,8 @@ tools = [multiply, get_weather_api]
 # 3. 初始化 LLM
 llm = ChatOllama(
     model="qwen2.5:7b", # 你的模型名称
-    temperature=0,       # 极其重要：7B 模型建议设为 0 以保证 JSON 格式稳定
-    num_ctx=2048,      # 限制上下文窗口大小，防止显存爆炸
+    temperature=0.7,       
+    num_ctx=2048,      # 限制上下文窗口大小
     num_predict=512,   # 限制输出长度
 )
 
@@ -56,7 +56,7 @@ app = create_agent_graph(llm, tools)
 
 # --- 运行测试 ---
 # 改为异步，兼容mcp版本
-async def chat_with_dusk():
+async def main():
     # 初始化状态
     current_state = {
         "messages": [],
@@ -115,6 +115,6 @@ async def chat_with_dusk():
 if __name__ == "__main__":
 # 启动异步事件循环
     try:
-        asyncio.run(chat_with_dusk())
+        asyncio.run(main())
     except KeyboardInterrupt:
         print("\n连接已断开。")

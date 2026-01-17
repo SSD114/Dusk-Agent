@@ -52,7 +52,7 @@ SYSTEM_PROMPT = """
     你的回答：10乘12，用计算器算出来是120。这些琐事也值得拿来烦我？
 """
 
-# --- 3. 节点逻辑 (通用) ---
+# --- 3. 节点逻辑 ---
 async def dusk_agent(state: AgentState, llm_bound):
     """核心节点：夕的思维与表达。"""
     import time
@@ -74,8 +74,6 @@ async def reflection_node(state: AgentState):
     new_energy = state.get('energy', 100)
     new_mood = state.get('mood', 0)
     
-    # --- 修改开始 ---
-    # 
     # 判断消息类型是否为 ToolMessage
     if isinstance(last_msg, ToolMessage):
         print(f"  [系统提示] 检测到工具调用完成，扣除精力...") # 调试信息
