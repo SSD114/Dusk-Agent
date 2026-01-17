@@ -45,7 +45,6 @@ SYSTEM_PROMPT = """
 6. **工具调用**：
     - 如果用户让你做计算或查天气，请使用工具（tools）。
     - 如果你调用了工具，请明确指出。
-    - 注意：若需要调用工具，严禁进行长篇思考，请立即输出工具调用指令。严禁在输出中包含复杂的逻辑推导
 
     例子：
     用户：帮我计算12*12
@@ -70,6 +69,7 @@ async def dusk_agent(state: AgentState, llm_bound):
 
 async def reflection_node(state: AgentState):
     """反思节点：根据回复内容更新心情和精力。"""
+    print("reflection_node")
     last_msg = state['messages'][-1]
     new_energy = state.get('energy', 100)
     new_mood = state.get('mood', 0)
@@ -81,48 +81,70 @@ async def reflection_node(state: AgentState):
         new_mood += 5    
     return {"energy": new_energy, "mood": new_mood}
 
-# 决策节点
-async def should_continue(state: AgentState):
+async def route_after_dusk(state: AgentState):
+    """
+    Dusk 思考后的路径：
+    1. 决定调用工具 -> 去 Tools
+    2. 只是单纯聊天 -> 去 Reflection (更新状态后结束)
+    """
+    print("route_after_dusk")
     last_message = state["messages"][-1]
     
-    # 1. 检查是否有工具调用请求
+    # 如果带有 tool_calls，说明进入了 Act 阶段
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-        # 自主意识：如果精力太低，强行拒绝调用工具
-        if state['energy'] < 5:
-            return "END"
+        print("tools node")
         return "tools"
     
-    return "END"
+    # 如果只是说话，去 Reflection 做最后的状态结算
+    return "reflection"
+
+async def route_after_reflection(state: AgentState):
+    """
+    Reflection 后的路径：
+    1. 如果刚运行完工具(ToolMessage)，必须回 Dusk 进行 Observation 和 Final Answer。
+    2. 如果只是聊完天，结束。
+    """
+    last_message = state["messages"][-1] 
+
+    print("route_after_reflection")
+    # 刚运行完工具，必须回去让 LLM 读取结果
+    if isinstance(last_message, ToolMessage):
+        return "dusk"
+        
+    return END
 
 # --- 4. 图创建函数  ---
 def create_agent_graph(llm, tools: List):
-    """
-    接收 LLM 和 Tools，组装并返回编译好的 Graph。
-    这实现了逻辑与配置的解耦。
-    """
-    # 1. 在这里进行绑定，确保 LLM 知道工具有哪些
     llm_bound = llm.bind_tools(tools)
-    
-    # 2. 构建图
     workflow = StateGraph(AgentState)
     
-    # 注入绑定了工具的 LLM
     workflow.add_node("dusk", partial(dusk_agent, llm_bound=llm_bound))
     workflow.add_node("tools", ToolNode(tools))
     workflow.add_node("reflection", reflection_node)
     
     workflow.set_entry_point("dusk")
     
+    # 逻辑流向 1: Dusk -> (工具 或 反思)
     workflow.add_conditional_edges(
         "dusk",
-        should_continue,
+        route_after_dusk,
         {
-            "tools": "tools", 
-            "END": END
+            "tools": "tools",
+            "reflection": "reflection"
         }
     )
     
+    # 逻辑流向 2: Tools -> Reflection (固定)
     workflow.add_edge("tools", "reflection")
-    workflow.add_edge("reflection", "dusk")
+    
+    # 逻辑流向 3: Reflection -> (回Dusk总结 或 结束)
+    workflow.add_conditional_edges(
+        "reflection",
+        route_after_reflection,
+        {
+            "dusk": "dusk",
+            END: END
+        }
+    )
     
     return workflow.compile()
