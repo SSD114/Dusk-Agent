@@ -44,7 +44,7 @@ async def _convert_session_to_tools(session: ClientSession, server_name: str = N
         return []
 
     langchain_tools = []
-    
+
     for tool in mcp_tools_list.tools:
         # --- 1. 处理工具名称 (增加命名空间) ---
         # 如果有 server_name，工具名变为 "server_tool" (例如: filesystem_read_file)
@@ -127,12 +127,22 @@ async def main():
     # --- 1. 定义多服务器配置 ---
     # 这里可以配置多个不同的 MCP 服务器
     # Key 是服务器名称（将成为工具前缀），Value 是启动参数
+    # 小模型可能存在注意力淹没问题，暂时只使用本地tools
     servers_config = {
         "local": StdioServerParameters(
             command=sys.executable,
             args=["mcp_tools.py"],
             env=os.environ.copy()
         ),
+        # "anilist": StdioServerParameters(
+        # command="npx",
+        # args=["-y", "anilist-mcp"],
+        # env={
+        #     **os.environ,              # 保留当前环境变量
+        #     "ANILIST_TOKEN": "your_api_token"
+        # }
+        # ),
+
         # 示例：如果你有第二个服务器 (比如文件系统 server)
         # "fs": StdioServerParameters(
         #     command="npx",
@@ -188,13 +198,13 @@ async def main():
             num_predict=512,
         )
 
-        app = create_agent_graph(llm, tools)
+        app = await create_agent_graph(llm, tools)
 
         # --- 5. 聊天循环 (保持不变) ---
         current_state = {
             "messages": [],
             "mood": 50,
-            "energy": 80,
+            "energy": 800,
             "last_action": "",
             "is_done": False
         }

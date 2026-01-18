@@ -53,18 +53,53 @@ SYSTEM_PROMPT = """
 
 # --- 3. 节点逻辑 ---
 async def dusk_agent(state: AgentState, llm_bound):
-    """核心节点：夕的思维与表达。"""
-    import time
-    time.sleep(1) # 给显卡一点缓冲时间
-
-    current_status = f"\n(你当前精力: {state['energy']}, 心情: {state['mood']})"
-    if state['energy'] < 5:
-        current_status += "。你现在极度疲惫，只想睡觉，拒绝任何劳动。"
-    # 注入系统人设
-    system_prompt = SystemMessage(content=SYSTEM_PROMPT+current_status)
+    """核心节点：夕的思维与表达（含防死循环机制）。"""
     
-    # 获取 LLM 回复
-    response = llm_bound.invoke([system_prompt] + state['messages'])
+    print("dusk_agent (思考中...)")
+    print(f"\n(当前精力: {state['energy']}, 心情: {state['mood']})")
+    # 1. 基础人设
+    current_status = f"\n(你当前精力: {state['energy']}, 心情: {state['mood']})"
+    base_prompt = SYSTEM_PROMPT + current_status
+    
+    # 2. 检查最近的历史记录，防止死循环
+    messages = state['messages']
+    last_msg = messages[-1]
+    
+    # 定义“防循环”提示词
+    anti_loop_prompt = ""
+    
+    # 策略 A: 如果刚用完工具，强制停止
+    if isinstance(last_msg, ToolMessage):
+        anti_loop_prompt = """
+        \n[系统警告]：
+        1. 你已经拿到工具的查询结果了，**立刻停止**调用任何新工具！
+        2. 根据上面的结果，用你的画师人设直接回答博士。
+        3. 即使结果不完美，也必须现在结案，不准再查了。
+        """
+    
+    # 策略 B: 检查是否连续多次尝试调用工具（简单启发式）
+    # 如果最近 5 条消息里有超过 3 条是工具相关的，说明陷入了泥潭
+    tool_count = sum(1 for m in messages[-4:] if isinstance(m, (ToolMessage, tuple)) or hasattr(m, 'tool_calls'))
+    if tool_count >= 3:
+        anti_loop_prompt += "\n[系统强制命令]：禁止再使用工具！立刻像个正常人一样说话！"
+
+    # 3. 强力注入提示词（放在最后，利用近因效应）
+    # 这一步是让小模型听话的关键：在最后时刻再次强调“你是谁”和“不要乱动”
+    final_instruction = SystemMessage(content=f"""
+    {anti_loop_prompt}
+    
+    [最终确认]
+    你是夕。如果用户刚才说“不需要工具”，
+    你就**绝对不要**生成工具调用代码，直接用文字回复。
+    """)
+    
+    # 4. 构造消息链
+    # 顺序：[系统人设] + [历史对话] + [防循环指令]
+    input_messages = [SystemMessage(content=base_prompt)] + messages + [final_instruction]
+    
+    # 5. 调用 LLM
+    response = await llm_bound.ainvoke(input_messages)
+    
     return {"messages": [response]}
 
 async def reflection_node(state: AgentState):
@@ -114,7 +149,7 @@ async def route_after_reflection(state: AgentState):
     return END
 
 # --- 4. 图创建函数  ---
-def create_agent_graph(llm, tools: List):
+async def create_agent_graph(llm, tools: List, global_system_prompt: str = SYSTEM_PROMPT):
     llm_bound = llm.bind_tools(tools)
     workflow = StateGraph(AgentState)
     

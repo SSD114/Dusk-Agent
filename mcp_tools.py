@@ -21,13 +21,12 @@ def get_weather(city: str) -> str:
     # 模拟真实数据返回
     return f"{{ 'city': '{city}', 'temp': '18°C', 'condition': '阴有小雨', 'tips': '出门记得带伞' }}"
 
-# 2. 乘法工具：保留一个数学工具作为对比，但描述要精准
-
+# 2. 乘法工具
 @mcp.tool()
 def multiply(a: float, b: float) -> float:
     """
     [数学计算工具]
-    仅用于计算两个数字的乘积。严禁用于其他用途，如查询天气。
+    仅用于计算两个数字的乘积。严禁用于其他用途
     """
     print(f"--- [MCP Server] 正在执行乘法: {a} * {b} ---")
     return a * b
