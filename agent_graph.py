@@ -53,9 +53,9 @@ SYSTEM_PROMPT = """
 
 # --- 3. 节点逻辑 ---
 async def dusk_agent(state: AgentState, llm_bound):
-    """核心节点：夕的思维与表达（含防死循环机制）。"""
+    """核心节点：夕的思维与表达"""
     
-    print("dusk_agent (思考中...)")
+    # print("dusk_agent (思考中...)")
     print(f"\n(当前精力: {state['energy']}, 心情: {state['mood']})")
     # 1. 基础人设
     current_status = f"\n(你当前精力: {state['energy']}, 心情: {state['mood']})"
@@ -104,7 +104,7 @@ async def dusk_agent(state: AgentState, llm_bound):
 
 async def reflection_node(state: AgentState):
     """反思节点：根据回复内容更新心情和精力。"""
-    print("reflection_node")
+    # print("reflection_node")
     last_msg = state['messages'][-1]
     new_energy = state.get('energy', 100)
     new_mood = state.get('mood', 0)
@@ -122,7 +122,7 @@ async def route_after_dusk(state: AgentState):
     1. 决定调用工具 -> 去 Tools
     2. 只是单纯聊天 -> 去 Reflection (更新状态后结束)
     """
-    print("route_after_dusk")
+    # print("route_after_dusk")
     last_message = state["messages"][-1]
     
     # 如果带有 tool_calls，说明进入了 Act 阶段
@@ -141,7 +141,7 @@ async def route_after_reflection(state: AgentState):
     """
     last_message = state["messages"][-1] 
 
-    print("route_after_reflection")
+    # print("route_after_reflection")
     # 刚运行完工具，必须回去让 LLM 读取结果
     if isinstance(last_message, ToolMessage):
         return "dusk"
@@ -149,7 +149,7 @@ async def route_after_reflection(state: AgentState):
     return END
 
 # --- 4. 图创建函数  ---
-async def create_agent_graph(llm, tools: List, global_system_prompt: str = SYSTEM_PROMPT):
+async def create_agent_graph(llm, tools: List):
     llm_bound = llm.bind_tools(tools)
     workflow = StateGraph(AgentState)
     

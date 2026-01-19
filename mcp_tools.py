@@ -59,7 +59,7 @@ def check_user_hardware() -> str:
     gpu_model = "未知设备"
 
     try:
-        # --- Windows 系统 (主要使用 wmic 命令) ---
+        # --- Windows 系统 ---
         if os_type == "Windows":
             # 1. CPU
             raw_cpu = run_command("wmic cpu get name")
@@ -96,13 +96,13 @@ def check_user_hardware() -> str:
             raw_cpu = run_command("grep 'model name' /proc/cpuinfo | head -n 1")
             if raw_cpu: cpu_model = raw_cpu.split(':')[-1].strip()
             
-            # 主板 (通常需要 root 权限，尝试读取 DMI)
+            # 主板
             mobo_vendor = run_command("cat /sys/class/dmi/id/board_vendor")
             mobo_name = run_command("cat /sys/class/dmi/id/board_name")
             if mobo_vendor or mobo_name:
                 mobo_model = f"{mobo_vendor or ''} {mobo_name or ''}".strip()
             
-            # GPU (使用 lspci)
+            # GPU
             raw_gpu = run_command("lspci | grep -i vga")
             if raw_gpu:
                 gpu_model = raw_gpu.split(':')[-1].strip()

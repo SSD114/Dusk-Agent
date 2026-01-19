@@ -11,7 +11,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import StructuredTool
 
-# 导入图构建工厂 (核心修改点)
+# 导入图构建函数
 from agent_graph import create_agent_graph
 
 # MCP imports
@@ -134,14 +134,6 @@ async def main():
             args=["mcp_tools.py"],
             env=os.environ.copy()
         ),
-        # "anilist": StdioServerParameters(
-        # command="npx",
-        # args=["-y", "anilist-mcp"],
-        # env={
-        #     **os.environ,              # 保留当前环境变量
-        #     "ANILIST_TOKEN": "your_api_token"
-        # }
-        # ),
 
         # 示例：如果你有第二个服务器 (比如文件系统 server)
         # "fs": StdioServerParameters(
@@ -175,8 +167,6 @@ async def main():
                 
             except Exception as e:
                 print(f"❌ [{server_name}] 连接失败: {e}")
-                # 根据需求，这里可以选择 continue (忽略错误) 或者 break (终止程序)
-                # break 
 
         if not sessions:
             print("没有成功连接任何服务器，程序退出。")
@@ -200,16 +190,16 @@ async def main():
 
         app = await create_agent_graph(llm, tools)
 
-        # --- 5. 聊天循环 (保持不变) ---
+        # --- 5. 聊天循环 ---
         current_state = {
             "messages": [],
             "mood": 50,
-            "energy": 800,
+            "energy": 100,
             "last_action": "",
             "is_done": False
         }
 
-        print("\n--- 已进入画卷世界 (多服务器版) ---")
+        print("\n--- 已进入画卷世界  ---")
         print("(输入 'exit' 退出)")
 
         while True:
@@ -226,7 +216,7 @@ async def main():
             result = await app.ainvoke(current_state)
             current_state = result
             
-            # ... (输出清理逻辑保持不变) ...
+            # 输出清理逻辑
             last_msg = result['messages'][-1]
             raw_content = last_msg.content if isinstance(last_msg.content, str) else ""
             if isinstance(last_msg.content, list):
